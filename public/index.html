@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#aeb6d6" />
+    <title>Bloom Bond</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="stage">
+      <section class="phone" id="loginPanel">
+        <div class="phone-inner login-view">
+          <div class="brand-symbol" aria-hidden="true"></div>
+          <h1 class="logo">Bloom Bond</h1>
+          <p class="tagline">Quietly bloom, gently bond.</p>
+          <form id="loginForm" class="glass-card login-form">
+            <label>
+              手机号
+              <input name="account" inputmode="tel" placeholder="请输入你的手机号" autocomplete="username" required />
+            </label>
+            <label>
+              密码
+              <input name="password" type="password" placeholder="请输入密码" autocomplete="current-password" required />
+            </label>
+            <button type="submit" class="gradient-btn">进入 Bloom Bond</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="phone" id="chatPanel">
+        <div class="phone-inner chat-view">
+          <header class="topbar glass-card">
+            <div class="avatar"></div>
+            <div>
+              <strong id="chatName">Bloom Bond</strong>
+              <p id="chatSubtitle">连接中</p>
+            </div>
+            <button id="openProfileButton" class="menu-btn" type="button" aria-label="打开角色属性">
+              <span></span><span></span><span></span>
+            </button>
+          </header>
+          <p class="name-pair"><span id="youName">你</span> · <span id="roleName">角色</span></p>
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <form id="messageForm" class="composer glass-card">
+            <textarea id="messageInput" rows="1" placeholder="想说点什么？" maxlength="1200"></textarea>
+            <button type="submit" class="send-btn">发送</button>
+          </form>
+          <p id="chatHint" class="chat-hint" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="phone" id="profilePanel">
+        <div class="phone-inner profile-view">
+          <header class="profile-header">
+            <button id="backToChatButton" class="ghost-btn" type="button" aria-label="返回聊天">返回</button>
+            <h2>角色属性</h2>
+          </header>
+          <form id="importForm" class="glass-card import-form">
+            <label class="file-zone" for="profileFile">
+              <input id="profileFile" name="profileFile" type="file" accept=".txt,.md,.markdown,.doc,.docx" />
+              <span id="fileHint">拖拽或选择 .txt / .md / .markdown 文件导入。Word 文件请先另存为 txt 或 md。</span>
+            </label>
+            <button type="submit" class="secondary-btn">解析并填入</button>
+          </form>
+          <form id="characterForm" class="glass-card profile-form">
+            <label>昵称<input name="nickname" required maxlength="32" placeholder="给 TA 起个名字" /></label>
+            <label>关系设定<input name="relationship" required maxlength="60" placeholder="你希望 TA 以什么身份陪你" /></label>
+            <label>年龄感<input name="ageSense" maxlength="40" placeholder="例如：20+ / 30 左右" /></label>
+            <label>性格<input name="traits" required maxlength="120" placeholder="例如：克制、温柔、有边界感" /></label>
+            <label>职业<input name="occupation" maxlength="80" placeholder="例如：独立摄影师" /></label>
+            <label>兴趣<input name="interests" maxlength="160" placeholder="例如：夜晚散步、爵士乐、看展" /></label>
+            <label>说话风格<textarea name="speechStyle" required maxlength="160" placeholder="例如：自然口语、会接住情绪、不说教"></textarea></label>
+            <label>关系背景<textarea name="background" maxlength="500" placeholder="你们如何认识？TA 了解你哪些状态？"></textarea></label>
+            <label>禁区 / 边界<textarea name="boundaries" maxlength="300" placeholder="例如：不越界、不命令、不讨论露骨内容"></textarea></label>
+            <button type="submit" class="gradient-btn" id="createOrUpdateButton">创建角色并开始对话</button>
+          </form>
+          <button id="profileToChatButton" class="secondary-btn profile-to-chat" type="button">返回聊天</button>
+          <article id="soulPreview" class="glass-card soul-preview"></article>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
