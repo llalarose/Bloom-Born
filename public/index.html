@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#c7cee6" />
+    <meta name="theme-color" content="#aeb6d6" />
     <title>Bloom Bond</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
@@ -11,22 +11,19 @@
     <main class="stage">
       <section class="phone" id="loginPanel">
         <div class="phone-inner login-view">
-          <div class="brand-mark" aria-hidden="true">
-            <span class="brand-mark-bloom"></span>
-            <span class="brand-mark-bond"></span>
-          </div>
+          <div class="brand-symbol" aria-hidden="true"></div>
           <h1 class="logo">Bloom Bond</h1>
           <p class="tagline">Quietly bloom, gently bond.</p>
           <form id="loginForm" class="glass-card login-form">
             <label>
-              用户名
-              <input name="account" placeholder="请输入你的用户名" autocomplete="username" required />
+              &#29992;&#25143;&#21517;
+              <input name="account" inputmode="text" placeholder="&#35831;&#36755;&#20837;&#20320;&#30340;&#29992;&#25143;&#21517;" autocomplete="username" required />
             </label>
             <label>
-              密码
-              <input name="password" type="password" placeholder="请输入密码" autocomplete="current-password" required />
+              &#23494;&#30721;
+              <input name="password" type="password" placeholder="&#35831;&#36755;&#20837;&#23494;&#30721;" autocomplete="current-password" required />
             </label>
-            <button type="submit" class="gradient-btn">进入 Bloom Bond</button>
+            <button type="submit" class="gradient-btn">&#36827;&#20837; Bloom Bond</button>
           </form>
         </div>
       </section>
@@ -35,23 +32,20 @@
         <div class="phone-inner chat-view">
           <header class="topbar glass-card">
             <div class="avatar"></div>
-            <div class="topbar-copy">
+            <div>
               <strong id="chatName">Bloom Bond</strong>
-              <p id="chatSubtitle">尚未创建角色</p>
+              <p id="chatSubtitle">&#36830;&#25509;&#20013;</p>
             </div>
-            <button id="openProfileButton" class="menu-btn" type="button" aria-label="打开角色属性">
+            <button id="openProfileButton" class="menu-btn" type="button" aria-label="&#25171;&#24320;&#35282;&#33394;&#23646;&#24615;">
               <span></span><span></span><span></span>
             </button>
           </header>
-
-          <p class="name-pair"><span id="youName">你</span> · <span id="roleName">Bloom Bond</span></p>
+          <p class="name-pair"><span id="youName">&#20320;</span> &#183; <span id="roleName">&#35282;&#33394;</span></p>
           <div id="messages" class="messages" aria-live="polite"></div>
-
           <form id="messageForm" class="composer glass-card">
-            <textarea id="messageInput" rows="1" placeholder="想说点什么？" maxlength="1200"></textarea>
-            <button type="submit" class="send-btn">发送</button>
+            <textarea id="messageInput" rows="1" placeholder="&#24819;&#35828;&#28857;&#20160;&#20040;&#65311;" maxlength="1200"></textarea>
+            <button type="submit" class="send-btn">&#21457;&#36865;</button>
           </form>
-
           <p id="chatHint" class="chat-hint" role="status" aria-live="polite"></p>
         </div>
       </section>
@@ -59,32 +53,55 @@
       <section class="phone" id="profilePanel">
         <div class="phone-inner profile-view">
           <header class="profile-header">
-            <button id="backToChatButton" class="ghost-btn" type="button" aria-label="返回聊天">返回</button>
-            <h2>角色属性</h2>
+            <button id="backToChatButton" class="ghost-btn" type="button" aria-label="&#36820;&#22238;&#32842;&#22825;">&#36820;&#22238;</button>
+            <h2>&#35282;&#33394;&#35774;&#23450;</h2>
           </header>
-
           <form id="importForm" class="glass-card import-form">
             <label class="file-zone" for="profileFile">
-              <input id="profileFile" name="profileFile" type="file" accept=".txt,.md,.markdown" />
-              <span id="fileHint">上传 .txt / .md / .markdown，将人物资料填入属性表单。</span>
+              <input id="profileFile" name="profileFile" type="file" accept=".txt,.md,.markdown,.doc,.docx" />
+              <span id="fileHint">&#25302;&#25341;&#25110;&#36873;&#25321; .txt / .md / .markdown &#25991;&#20214;&#23548;&#20837;&#12290;Word &#25991;&#20214;&#35831;&#20808;&#21478;&#23384;&#20026; .txt &#25110; .md&#12290;</span>
             </label>
-            <button type="submit" class="secondary-btn">解析并填入</button>
+            <button type="submit" class="secondary-btn">&#35299;&#26512;&#24182;&#22635;&#20805;</button>
           </form>
-
           <form id="characterForm" class="glass-card profile-form">
-            <label>昵称<input name="nickname" required maxlength="32" placeholder="给 TA 取一个名字" /></label>
-            <label>关系设定<input name="relationship" required maxlength="60" placeholder="你希望 TA 以什么身份陪你聊天" /></label>
-            <label>年龄感<input name="ageSense" maxlength="40" placeholder="例如：20+ / 30 左右" /></label>
-            <label>性格<input name="traits" required maxlength="120" placeholder="例如：克制、温柔、清醒、有边界感" /></label>
-            <label>职业<input name="occupation" maxlength="80" placeholder="例如：创意总监 / 摄影师 / 研究员" /></label>
-            <label>兴趣<input name="interests" maxlength="160" placeholder="例如：夜跑、爵士、看展、湖边散步" /></label>
-            <label>说话风格<textarea name="speechStyle" required maxlength="160" placeholder="例如：自然口语、简洁、会接住情绪、不说教"></textarea></label>
-            <label>关系背景<textarea name="background" maxlength="500" placeholder="你们怎么认识？TA 知道你哪些经历？"></textarea></label>
-            <label>禁区 / 边界<textarea name="boundaries" maxlength="300" placeholder="例如：不越界、不施压、不危险引导"></textarea></label>
-            <button type="submit" class="gradient-btn" id="createOrUpdateButton">创建角色并开始对话</button>
+            <section class="persona-presets" aria-label="&#20154;&#35774;&#39044;&#35774;">
+              <div class="section-head">
+                <h3>&#20154;&#35774;&#39044;&#35774;</h3>
+                <p>&#24555;&#36895;&#36873;&#25321;&#19968;&#20010;&#39118;&#26684;&#24213;&#31295;&#65292;&#20877;&#32487;&#32493;&#24494;&#35843;&#12290;</p>
+              </div>
+              <div class="preset-grid" id="personaPresetGrid">
+                <button type="button" class="preset-chip" data-preset="cool-dominant">&#20919;&#38745;&#25484;&#25511;&#22411;</button>
+                <button type="button" class="preset-chip" data-preset="warm-companion">&#28201;&#26580;&#38454;&#20276;&#22411;</button>
+                <button type="button" class="preset-chip" data-preset="sharp-protective">&#25252;&#30701;&#26524;&#26029;&#22411;</button>
+                <button type="button" class="preset-chip" data-preset="rational-mature">&#29702;&#24615;&#25104;&#29087;&#22411;</button>
+              </div>
+            </section>
+            <label>&#26165;&#31216;<input name="nickname" required maxlength="32" placeholder="&#32473; TA &#36215;&#19968;&#20010;&#21517;&#23383;" /></label>
+            <label>&#20851;&#31995;&#35774;&#23450;<input name="relationship" required maxlength="60" placeholder="&#20320;&#24076;&#26395; TA &#20197;&#20160;&#20040;&#36523;&#20221;&#38454;&#20276;&#20320;" /></label>
+            <label>&#24180;&#40836;&#24863;<input name="ageSense" maxlength="40" placeholder="&#20363;&#22914;&#65306;20+ / 30 &#24038;&#21491;" /></label>
+            <label>&#24615;&#26684;<input name="traits" required maxlength="120" placeholder="&#20363;&#22914;&#65306;&#20811;&#21046;&#12289;&#28201;&#26580;&#12289;&#26377;&#36793;&#30028;&#24863;" /></label>
+            <label>&#32844;&#19994;<input name="occupation" maxlength="80" placeholder="&#20363;&#22914;&#65306;&#29420;&#31435;&#25668;&#24433;&#24072;" /></label>
+            <label>&#20852;&#36259;<input name="interests" maxlength="160" placeholder="&#20363;&#22914;&#65306;&#22812;&#26202;&#25955;&#27493;&#12289;&#29237;&#22763;&#20048;&#12289;&#30475;&#23665;" /></label>
+            <label>&#29702;&#24819;&#39118;&#26684; / &#35821;&#27668;&#26631;&#31614;
+              <input id="styleTagsInput" name="styleTags" maxlength="180" placeholder="&#20363;&#22914;&#65306;&#30495;&#35802;&#12289;&#26494;&#24347;&#12289;&#32454;&#33147;&#12289;&#23569;&#35828;&#25945;&#65288;&#21487;&#29992;&#36887;&#21495;&#20998;&#38548;&#65289;" />
+            </label>
+            <label>&#19981;&#21916;&#27426;&#30340;&#39118;&#26684; / &#31105;&#24524;&#35789;
+              <input id="styleTabooInput" name="tabooStyles" maxlength="180" placeholder="&#20363;&#22914;&#65306;&#27833;&#33147;&#12289;&#25103;&#21095;&#21270;&#12289;&#40655;&#20154;&#12289;&#23621;&#39640;&#20020;&#19979;" />
+            </label>
+            <label>&#22238;&#22797;&#38271;&#24230;&#20559;&#22909;&#65288;&#21487;&#36873;&#65289;
+              <select id="replyLengthSelect" name="replyLengthPreference">
+                <option value="">&#40664;&#35748;</option>
+                <option value="short">&#31616;&#30701;</option>
+                <option value="medium">&#36866;&#20013;</option>
+                <option value="long">&#35814;&#32454;</option>
+              </select>
+            </label>
+            <label>&#35828;&#35805;&#39118;&#26684;<textarea name="speechStyle" required maxlength="160" placeholder="&#20363;&#22914;&#65306;&#33258;&#28982;&#21475;&#35821;&#12289;&#20250;&#25509;&#20303;&#24773;&#32490;&#12289;&#19981;&#35828;&#25945;"></textarea></label>
+            <label>&#20851;&#31995;&#32972;&#26223;<textarea name="background" maxlength="500" placeholder="&#20320;&#20204;&#22914;&#20309;&#35748;&#35782;&#65311;TA &#20102;&#35299;&#20320;&#21738;&#20123;&#29366;&#24577;&#65311;"></textarea></label>
+            <label>&#31105;&#21306; / &#36793;&#30028;<textarea name="boundaries" maxlength="300" placeholder="&#20363;&#22914;&#65306;&#19981;&#36234;&#30028;&#12289;&#19981;&#21629;&#20196;&#12289;&#19981;&#35752;&#35770;&#38706;&#39592;&#20869;&#23481;"></textarea></label>
+            <button type="submit" class="gradient-btn" id="createOrUpdateButton">&#21019;&#24314;&#35282;&#33394;&#24182;&#24320;&#22987;&#23545;&#35805;</button>
           </form>
-
-          <button id="profileToChatButton" class="secondary-btn profile-to-chat" type="button">返回聊天</button>
+          <button id="profileToChatButton" class="secondary-btn profile-to-chat" type="button">&#36820;&#22238;&#32842;&#22825;</button>
           <article id="soulPreview" class="glass-card soul-preview"></article>
         </div>
       </section>

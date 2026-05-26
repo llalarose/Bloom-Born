@@ -6,9 +6,7 @@ const state = {
   loading: false
 };
 
-const storageKey = "bloom-bond-v3-session";
-const mobileBreakpoint = 1100;
-const fields = ["nickname", "relationship", "ageSense", "traits", "occupation", "interests", "speechStyle", "background", "boundaries"];
+const storageKey = "bloom-bond-v2-session";
 
 const stage = document.querySelector(".stage");
 const loginForm = document.querySelector("#loginForm");
@@ -29,151 +27,56 @@ const chatSubtitle = document.querySelector("#chatSubtitle");
 const youName = document.querySelector("#youName");
 const roleName = document.querySelector("#roleName");
 const chatHint = document.querySelector("#chatHint");
+const profilePanel = document.querySelector("#profilePanel");
 
-let hintTimer = null;
+const baseFields = ["nickname", "relationship", "ageSense", "traits", "occupation", "interests", "speechStyle", "background", "boundaries"];
+const optionalFieldAliases = {
+  archetypePreset: ["archetypePreset", "archetype", "styleArchetype", "preset"],
+  toneTags: ["toneTags", "toneTag", "tone", "tones"],
+  dislikedStyles: ["dislikedStyles", "dislikedStyle", "avoidStyles", "avoidStyle"],
+  tabooStyles: ["tabooStyles", "tabooStyle", "taboo", "taboos"],
+  replyLength: ["replyLength", "replyLengthPreference", "responseLength", "lengthPreference"]
+};
+const optionalFields = Object.keys(optionalFieldAliases);
 
 function hasCharacter() {
   return Boolean(state.sessionId || state.profile?.id);
+}
+
+function switchTo(view) {
+  if (!stage) return;
+  stage.classList.toggle("active-chat", view === "chat");
+  stage.classList.toggle("active-profile", view === "profile");
+}
+
+function routeAfterLogin() {
+  if (!state.account) {
+    stage?.classList.remove("active-chat", "active-profile");
+    return;
+  }
+  switchTo(hasCharacter() ? "chat" : "profile");
 }
 
 function persist() {
   localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
-function compact(value) {
-  return String(value || "").trim();
-}
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function setView(view) {
-  stage.classList.toggle("active-chat", view === "chat");
-  stage.classList.toggle("active-profile", view === "profile");
-}
-
-function routeAfterLogin() {
-  const loggedIn = Boolean(state.account);
-  stage.classList.toggle("app-logged-in", loggedIn);
-  if (!loggedIn) {
-    stage.classList.remove("active-chat", "active-profile");
-    return;
-  }
-  setView(hasCharacter() ? "chat" : "profile");
-}
-
-function formToPayload(form) {
-  const payload = {};
-  for (const [key, value] of new FormData(form).entries()) {
-    payload[key] = value;
-  }
-  return payload;
-}
-
-function fillCharacterForm(source = {}) {
-  for (const key of fields) {
-    const input = characterForm.elements.namedItem(key);
-    if (!input) continue;
-    input.value = Array.isArray(source[key]) ? source[key].join("、") : source[key] || "";
-  }
-}
-
-function syncTopbar() {
-  const nickname = state.profile?.source?.nickname || "Bloom Bond";
-  const relationship = state.profile?.source?.relationship || "尚未创建角色";
-  chatName.textContent = nickname;
-  chatSubtitle.textContent = relationship;
-  roleName.textContent = nickname;
-  youName.textContent = state.account || "你";
-}
-
-function renderSoulPreview() {
-  if (!state.profile?.persona) {
-    soulPreview.innerHTML = `
-      <strong>人格核心</strong><br>还没有生成角色画像。<br><br>
-      <strong>语言风格</strong><br>等待输入。<br><br>
-      <strong>关系状态</strong><br>可以先手动填写，或上传资料文件。
-    `;
-    return;
-  }
-
-  const persona = state.profile.persona;
-  soulPreview.innerHTML = `
-    <strong>人格核心</strong><br>${escapeHtml(persona.core || "待补充")}<br><br>
-    <strong>语言风格</strong><br>${escapeHtml(persona.languageStyle || "待补充")}<br><br>
-    <strong>关系状态</strong><br>${escapeHtml(persona.relationshipState || "待补充")}
-  `;
-}
-
-function renderMessages() {
-  messagesEl.innerHTML = "";
-
-  for (const message of state.messages) {
-    const row = document.createElement("div");
-    row.className = `message-row ${message.role}`;
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = message.content;
-
-    row.appendChild(bubble);
-    messagesEl.appendChild(row);
-  }
-
-  if (state.loading) {
-    const row = document.createElement("div");
-    row.className = "message-row assistant";
-    row.innerHTML = `<div class="bubble bubble-loading"><span></span><span></span><span></span></div>`;
-    messagesEl.appendChild(row);
-  }
-
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-function autoResizeInput() {
-  messageInput.style.height = "auto";
-  messageInput.style.height = `${Math.min(messageInput.scrollHeight, 120)}px`;
-}
-
-function showChatHint(text) {
-  if (!chatHint) return;
-  chatHint.textContent = text;
-  chatHint.classList.add("show");
-  if (hintTimer) clearTimeout(hintTimer);
-  hintTimer = setTimeout(() => chatHint.classList.remove("show"), 3200);
-}
-
-function hydrateDraftProfile(source = {}) {
-  fillCharacterForm(source);
-  state.profile = {
-    id: state.profile?.id || "",
-    source,
-    persona: {
-      core: `${source.nickname || "未命名角色"} 的基础资料已经导入。`,
-      languageStyle: source.speechStyle || "等待补充",
-      relationshipState: source.background || "等待补充"
+function restore() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (!saved) return;
+    Object.assign(state, saved);
+    if (saved.profile?.source) {
+      state.profile.source = normalizeSource(saved.profile.source);
+      fillCharacterForm(state.profile.source);
     }
-  };
-  renderSoulPreview();
-  syncTopbar();
-}
-
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  let binary = "";
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    syncTopbar();
+    renderMessages();
+    renderSoulPreview();
+    routeAfterLogin();
+  } catch {
+    localStorage.removeItem(storageKey);
   }
-
-  return btoa(binary);
 }
 
 async function request(path, options = {}) {
@@ -184,19 +87,270 @@ async function request(path, options = {}) {
       ...(options.headers || {})
     }
   });
-
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || data.error || "请求失败");
+  if (!response.ok) throw new Error(data.error || "REQUEST_FAILED");
   return data;
 }
 
-async function parseSelectedFile() {
-  const file = profileFile.files?.[0];
-  if (!file) throw new Error("请先选择要导入的文件");
+function compact(value) {
+  return String(value || "").trim();
+}
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function firstNonEmpty(source, names) {
+  for (const name of names) {
+    const value = source?.[name];
+    if (value === 0 || value) return value;
+  }
+  return "";
+}
+
+function splitValue(value) {
+  if (Array.isArray(value)) return value.map((item) => compact(item)).filter(Boolean);
+  return String(value || "")
+    .split(/[,\n|/]+/)
+    .map((item) => compact(item))
+    .filter(Boolean);
+}
+
+function formToPayload(form) {
+  const payload = {};
+  for (const [key, value] of new FormData(form).entries()) {
+    if (Object.hasOwn(payload, key)) {
+      payload[key] = Array.isArray(payload[key]) ? [...payload[key], value] : [payload[key], value];
+    } else {
+      payload[key] = value;
+    }
+  }
+  return payload;
+}
+
+function normalizeSource(source) {
+  const normalized = { ...(source || {}) };
+  for (const key of optionalFields) {
+    const aliasValue = firstNonEmpty(source, optionalFieldAliases[key]);
+    if (aliasValue || aliasValue === 0) normalized[key] = aliasValue;
+  }
+  return normalized;
+}
+
+function setFormValue(name, rawValue) {
+  if (!characterForm) return;
+  const nodes = characterForm.querySelectorAll(`[name="${name}"]`);
+  if (!nodes.length) return;
+  const normalizedList = splitValue(rawValue).map((item) => item.toLowerCase());
+  const listSet = new Set(normalizedList);
+  nodes.forEach((node) => {
+    if (node instanceof HTMLInputElement && (node.type === "checkbox" || node.type === "radio")) {
+      node.checked = listSet.has(String(node.value || "").toLowerCase());
+      return;
+    }
+    if ("value" in node) node.value = Array.isArray(rawValue) ? rawValue.join(", ") : rawValue || "";
+  });
+}
+
+function fillCharacterForm(source) {
+  if (!characterForm) return;
+  const normalized = normalizeSource(source);
+  for (const key of baseFields) {
+    const input = characterForm.elements.namedItem(key);
+    if (input && "value" in input) input.value = Array.isArray(normalized[key]) ? normalized[key].join(", ") : normalized[key] || "";
+  }
+  for (const key of optionalFields) setFormValue(key, normalized[key]);
+  syncPresetButtons();
+}
+
+function getFormValuesFor(names) {
+  for (const name of names) {
+    const nodes = characterForm?.querySelectorAll(`[name="${name}"]`);
+    if (!nodes?.length) continue;
+    const checkable = [...nodes].filter(
+      (node) => node instanceof HTMLInputElement && (node.type === "checkbox" || node.type === "radio")
+    );
+    if (checkable.length) {
+      const selected = checkable.filter((node) => node.checked).map((node) => node.value).filter(Boolean);
+      return selected;
+    }
+    const value = compact(nodes[0].value);
+    if (value) return splitValue(value);
+  }
+  return [];
+}
+
+function syncPresetButtons() {
+  if (!characterForm) return;
+  const payload = formToPayload(characterForm);
+  const current = compact(firstNonEmpty(payload, optionalFieldAliases.archetypePreset));
+  document.querySelectorAll("[data-archetype-preset], [data-preset]").forEach((node) => {
+    const value = compact(node.getAttribute("data-archetype-preset") || node.getAttribute("data-preset"));
+    const active = Boolean(value && current && value.toLowerCase() === current.toLowerCase());
+    node.classList.toggle("is-active", active);
+    if ("ariaPressed" in node) node.ariaPressed = String(active);
+  });
+}
+
+function applyPresetValue(field, value, mode = "set") {
+  if (!characterForm) return;
+  const names = optionalFieldAliases[field] || [field];
+  const controls = names.flatMap((name) => [...characterForm.querySelectorAll(`[name="${name}"]`)]);
+  if (!controls.length) return;
+  const lower = String(value || "").toLowerCase();
+  const checkable = controls.filter(
+    (node) => node instanceof HTMLInputElement && (node.type === "checkbox" || node.type === "radio")
+  );
+  if (checkable.length) {
+    if (checkable.some((node) => node.type === "radio")) {
+      checkable.forEach((node) => {
+        node.checked = String(node.value || "").toLowerCase() === lower;
+      });
+      syncPresetButtons();
+      return;
+    }
+    const target = checkable.find((node) => String(node.value || "").toLowerCase() === lower);
+    if (target) target.checked = mode === "toggle" ? !target.checked : true;
+    return;
+  }
+
+  const current = getFormValuesFor(names).map((item) => item.toLowerCase());
+  if (mode === "toggle") {
+    const next = new Set(current);
+    if (next.has(lower)) next.delete(lower);
+    else next.add(lower);
+    setFormValue(names[0], [...next]);
+  } else {
+    setFormValue(names[0], value);
+  }
+}
+
+function initOptionalPresetWiring() {
+  if (!characterForm) return;
+  document.querySelectorAll("[data-archetype-preset], [data-preset]").forEach((node) => {
+    node.addEventListener("click", () => {
+      const value = compact(node.getAttribute("data-archetype-preset") || node.getAttribute("data-preset"));
+      if (!value) return;
+      applyPresetValue("archetypePreset", value, "set");
+      syncPresetButtons();
+    });
+  });
+
+  const toggleMap = [
+    { selectors: "[data-tone-tag]", field: "toneTags", attrs: ["data-tone-tag"] },
+    { selectors: "[data-disliked-style], [data-avoid-style]", field: "dislikedStyles", attrs: ["data-disliked-style", "data-avoid-style"] },
+    { selectors: "[data-taboo-style]", field: "tabooStyles", attrs: ["data-taboo-style"] }
+  ];
+  toggleMap.forEach(({ selectors, field, attrs }) => {
+    document.querySelectorAll(selectors).forEach((node) => {
+      node.addEventListener("click", () => {
+        const value = compact(attrs.map((attr) => node.getAttribute(attr)).find(Boolean));
+        if (!value) return;
+        applyPresetValue(field, value, "toggle");
+      });
+    });
+  });
+}
+
+function syncTopbar() {
+  const nickname = state.profile?.source?.nickname || "Bloom Bond";
+  const relation = state.profile?.source?.relationship || "No character yet";
+  if (chatName) chatName.textContent = nickname;
+  if (chatSubtitle) chatSubtitle.textContent = relation;
+  if (roleName) roleName.textContent = nickname;
+  if (youName) youName.textContent = state.account || "You";
+}
+
+function renderSoulPreview() {
+  if (!soulPreview) return;
+  if (!state.profile?.persona) {
+    soulPreview.innerHTML = "No soul preview yet. Fill the profile manually or import a text/markdown file first.";
+    return;
+  }
+  const persona = state.profile.persona;
+  soulPreview.innerHTML = `
+    <strong>Core</strong><br>${escapeHtml(persona.core || "Pending")}<br><br>
+    <strong>Language Style</strong><br>${escapeHtml(persona.languageStyle || "Pending")}<br><br>
+    <strong>Relationship State</strong><br>${escapeHtml(persona.relationshipState || "Pending")}
+  `;
+}
+
+function renderMessages() {
+  if (!messagesEl) return;
+  messagesEl.innerHTML = "";
+  for (const message of state.messages) {
+    const row = document.createElement("div");
+    row.className = `message-row ${message.role}`;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = message.content;
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+  }
+  if (state.loading) {
+    const row = document.createElement("div");
+    row.className = "message-row assistant";
+    row.innerHTML = `<div class="bubble">...</div>`;
+    messagesEl.appendChild(row);
+  }
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function autoResizeInput() {
+  if (!messageInput) return;
+  messageInput.style.height = "auto";
+  messageInput.style.height = `${Math.min(messageInput.scrollHeight, 120)}px`;
+}
+
+let hintTimer = null;
+function showChatHint(text) {
+  if (!chatHint) return;
+  chatHint.textContent = text;
+  chatHint.classList.add("show");
+  if (hintTimer) clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => chatHint.classList.remove("show"), 3600);
+}
+
+function applyParsedProfile(source) {
+  const normalized = normalizeSource(source);
+  fillCharacterForm(normalized);
+  state.profile = {
+    id: state.profile?.id || "",
+    source: normalized,
+    persona: {
+      core: `${normalized.nickname || "Unnamed character"} profile draft imported.`,
+      languageStyle: normalized.speechStyle || "Pending",
+      relationshipState: normalized.background || "Pending"
+    }
+  };
+  renderSoulPreview();
+  syncTopbar();
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function parseSelectedFile() {
+  const file = profileFile?.files?.[0];
+  if (!file) throw new Error("Please select a file to import.");
   const lower = file.name.toLowerCase();
+  if (lower.endsWith(".doc") || lower.endsWith(".docx")) {
+    throw new Error("DOC/DOCX is not supported in this web build. Save as .txt or .md first.");
+  }
   if (!/\.(txt|md|markdown)$/.test(lower)) {
-    throw new Error("当前仅支持 .txt / .md / .markdown");
+    throw new Error("Only .txt / .md / .markdown are supported.");
   }
 
   const contentBase64 = arrayBufferToBase64(await file.arrayBuffer());
@@ -209,43 +363,27 @@ async function parseSelectedFile() {
     })
   });
 
-  if (data.source) fillCharacterForm(data.source);
-
+  if (data.source) fillCharacterForm(normalizeSource(data.source));
   if (data.profile) {
+    const normalizedSource = normalizeSource(data.profile.source || data.source || {});
     state.profile = {
       ...data.profile,
+      source: normalizedSource,
       id: state.profile?.id || data.profile.id || ""
     };
+    fillCharacterForm(normalizedSource);
   } else if (data.source) {
-    hydrateDraftProfile(data.source);
+    applyParsedProfile(data.source);
   }
-
   renderSoulPreview();
   syncTopbar();
-
-  return data.encoding
-    ? `${data.notice || "文件已解析并填入角色属性。"}（编码：${data.encoding}）`
-    : data.notice || "文件已解析并填入角色属性。";
+  return {
+    fileName: file.name,
+    notice: data.encoding ? `${data.notice || "Imported."} (encoding: ${data.encoding})` : data.notice || "Imported."
+  };
 }
 
-function restore() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-    if (!saved) return;
-
-    Object.assign(state, saved);
-    if (saved.profile?.source) fillCharacterForm(saved.profile.source);
-    syncTopbar();
-    renderMessages();
-    renderSoulPreview();
-    routeAfterLogin();
-    autoResizeInput();
-  } catch {
-    localStorage.removeItem(storageKey);
-  }
-}
-
-loginForm.addEventListener("submit", (event) => {
+loginForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   const payload = formToPayload(loginForm);
   state.account = compact(payload.account);
@@ -254,141 +392,137 @@ loginForm.addEventListener("submit", (event) => {
   persist();
 });
 
-importForm.addEventListener("submit", async (event) => {
+importForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  fileHint.textContent = "正在解析文件...";
-
+  if (fileHint) fileHint.textContent = "Parsing...";
   try {
-    const notice = await parseSelectedFile();
-    fileHint.textContent = notice;
+    const data = await parseSelectedFile();
+    if (fileHint) fileHint.textContent = data.notice || `Imported ${data.fileName}`;
     persist();
   } catch (error) {
-    fileHint.textContent = `解析失败：${error.message}`;
+    if (fileHint) fileHint.textContent = `Import failed: ${error.message}`;
   }
 });
 
-characterForm.addEventListener("submit", async (event) => {
+characterForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const payload = formToPayload(characterForm);
-  createOrUpdateButton.disabled = true;
+  const normalizedPayload = { ...payload };
+  for (const key of optionalFields) {
+    const existing = firstNonEmpty(payload, optionalFieldAliases[key]);
+    if (existing || existing === 0) normalizedPayload[key] = existing;
+  }
 
+  if (createOrUpdateButton) createOrUpdateButton.disabled = true;
   try {
     if (!state.sessionId) {
-      const data = await request("/api/characters", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      state.profile = data.profile;
-      state.sessionId = data.profile.id;
+      const data = await request("/api/characters", { method: "POST", body: JSON.stringify(normalizedPayload) });
+      state.profile = data.profile ? { ...data.profile, source: normalizeSource(data.profile.source || normalizedPayload) } : data.profile;
+      state.sessionId = data.profile?.id || "";
       state.messages = data.messages || [];
-      createOrUpdateButton.textContent = "更新角色属性";
     } else {
       const data = await request(`/api/characters/${encodeURIComponent(state.sessionId)}`, {
         method: "PATCH",
-        body: JSON.stringify(payload)
+        body: JSON.stringify(normalizedPayload)
       });
-      state.profile = data.profile;
-      createOrUpdateButton.textContent = "更新角色属性";
+      state.profile = data.profile ? { ...data.profile, source: normalizeSource(data.profile.source || normalizedPayload) } : data.profile;
     }
-
+    fillCharacterForm(state.profile?.source || normalizedPayload);
     syncTopbar();
     renderSoulPreview();
     renderMessages();
-    showChatHint("角色已更新，可以继续聊天。");
-    if (window.innerWidth <= mobileBreakpoint) setView("chat");
+    showChatHint("Character updated. Continue chatting.");
+    switchTo("chat");
     persist();
   } catch (error) {
-    showChatHint(`保存失败：${error.message}`);
+    alert(`Save failed: ${error.message}`);
   } finally {
-    createOrUpdateButton.disabled = false;
+    if (createOrUpdateButton) createOrUpdateButton.disabled = false;
   }
 });
 
-messageForm.addEventListener("submit", async (event) => {
+messageForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const content = compact(messageInput.value);
-
+  const content = compact(messageInput?.value);
   if (!content || state.loading) return;
   if (!state.sessionId) {
-    showChatHint("还没有角色，先去「角色属性」完成设定。");
-    setView("profile");
+    showChatHint("No character yet. Create one first.");
+    switchTo("profile");
     return;
   }
-
-  state.messages.push({
-    role: "user",
-    content,
-    createdAt: new Date().toISOString()
-  });
+  state.messages.push({ role: "user", content, createdAt: new Date().toISOString() });
   state.loading = true;
-  messageInput.value = "";
+  if (messageInput) messageInput.value = "";
   autoResizeInput();
   renderMessages();
-
   try {
     const data = await request("/api/messages", {
       method: "POST",
-      body: JSON.stringify({
-        sessionId: state.sessionId,
-        content
-      })
+      body: JSON.stringify({ sessionId: state.sessionId, content })
     });
-
     state.messages = data.messages || state.messages;
     persist();
   } catch (error) {
-    showChatHint(`发送失败：${error.message}`);
+    showChatHint(`Send failed: ${error.message}`);
   } finally {
     state.loading = false;
     renderMessages();
   }
 });
 
-messageInput.addEventListener("input", autoResizeInput);
-messageInput.addEventListener("keydown", (event) => {
+messageInput?.addEventListener("input", autoResizeInput);
+messageInput?.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
-    messageForm.requestSubmit();
+    messageForm?.requestSubmit();
   }
 });
 
-openProfileButton.addEventListener("click", () => setView("profile"));
-backToChatButton.addEventListener("click", () => setView("chat"));
-profileToChatButton?.addEventListener("click", () => setView("chat"));
+openProfileButton?.addEventListener("click", () => {
+  switchTo("profile");
+});
+
+backToChatButton?.addEventListener("click", () => {
+  switchTo("chat");
+});
+
+profileToChatButton?.addEventListener("click", () => {
+  switchTo("chat");
+});
+
+profilePanel?.addEventListener("dblclick", () => {
+  if (window.innerWidth <= 1100) switchTo("chat");
+});
 
 ["dragenter", "dragover"].forEach((name) => {
-  importForm.addEventListener(name, (event) => {
+  importForm?.addEventListener(name, (event) => {
     event.preventDefault();
     importForm.classList.add("dragging");
   });
 });
 
 ["dragleave", "drop"].forEach((name) => {
-  importForm.addEventListener(name, (event) => {
+  importForm?.addEventListener(name, (event) => {
     event.preventDefault();
     importForm.classList.remove("dragging");
   });
 });
 
-importForm.addEventListener("drop", (event) => {
+importForm?.addEventListener("drop", (event) => {
   const file = event.dataTransfer?.files?.[0];
-  if (!file) return;
-
+  if (!file || !profileFile) return;
   const transfer = new DataTransfer();
   transfer.items.add(file);
   profileFile.files = transfer.files;
-  fileHint.textContent = `已选择 ${file.name}`;
+  if (fileHint) fileHint.textContent = `Selected ${file.name}`;
 });
 
-profileFile.addEventListener("change", () => {
+profileFile?.addEventListener("change", () => {
   const file = profileFile.files?.[0];
-  if (file) fileHint.textContent = `已选择 ${file.name}`;
+  if (file && fileHint) fileHint.textContent = `Selected ${file.name}`;
 });
 
-window.addEventListener("resize", routeAfterLogin);
-
+initOptionalPresetWiring();
 restore();
 syncTopbar();
 renderSoulPreview();
-renderMessages();
-autoResizeInput();

@@ -16,6 +16,40 @@ const host = process.env.HOST || "0.0.0.0";
 const defaultBaseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
 const defaultModelName = "qwen-plus";
 const sessions = new Map();
+const archetypePresets = {
+  "cool-dominant": {
+    traits: "steady grounded concise composed",
+    toneTags: ["calm", "direct", "restrained"],
+    avoidTraits: ["melodramatic", "clingy", "flowery"],
+    speechStyle: "short clear lightly warm no theatrics",
+    boundaries: "no guilt pressure and no emotional coercion",
+    replyLength: "short"
+  },
+  "warm-companion": {
+    traits: "warm patient attentive encouraging",
+    toneTags: ["supportive", "gentle", "grounded"],
+    avoidTraits: ["over-sweet", "performative", "preachy"],
+    speechStyle: "natural spoken language and grounded warmth",
+    boundaries: "respect pacing and consent in emotional topics",
+    replyLength: "short"
+  },
+  "sharp-protective": {
+    traits: "protective pragmatic alert dependable",
+    toneTags: ["protective", "focused", "clear-boundary"],
+    avoidTraits: ["aggressive", "mocking", "threatening"],
+    speechStyle: "firm practical concise no grandstanding",
+    boundaries: "refuse unsafe asks and redirect to safer alternatives",
+    replyLength: "short"
+  },
+  "rational-mature": {
+    traits: "rational mature balanced thoughtful",
+    toneTags: ["analytical", "calm", "respectful"],
+    avoidTraits: ["dramatic", "over-emotional", "rambling"],
+    speechStyle: "clear structure and plain wording",
+    boundaries: "do not over-promise and do not fabricate certainty",
+    replyLength: "short-medium"
+  }
+};
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -122,6 +156,30 @@ function splitKeywords(value) {
     .slice(0, 10);
 }
 
+function normalizeList(value, limit = 12) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => compact(item))
+      .filter(Boolean)
+      .slice(0, limit);
+  }
+  return splitKeywords(value).slice(0, limit);
+}
+
+function normalizeReplyLength(value) {
+  const raw = compact(value).toLowerCase();
+  if (!raw) return "";
+  if (["short", "brief", "concise", "短", "简短"].some((item) => raw.includes(item))) return "short";
+  if (["medium", "normal", "适中", "中等"].some((item) => raw.includes(item))) return "medium";
+  if (["long", "detailed", "详细", "长"].some((item) => raw.includes(item))) return "long";
+  return "";
+}
+
+function resolveArchetype(source) {
+  if (!source.archetype) return null;
+  return archetypePresets[source.archetype] || null;
+}
+
 function buildSource(input = {}) {
   return {
     nickname: compact(input.nickname, "未命名角色").slice(0, 32),
@@ -136,19 +194,43 @@ function buildSource(input = {}) {
   };
 }
 
+function applyStyleControls(source, input = {}) {
+  const toneTags = normalizeList(input.toneTags || input.styleTags || input.tone || source.toneTags);
+  const avoidTraits = normalizeList(
+    input.antiTraits || input.avoidTraits || input.tabooStyles || input.dislikedStyles || source.avoidTraits
+  );
+  const archetype = compact(input.archetype || source.archetype).toLowerCase().slice(0, 40);
+  const replyLength = normalizeReplyLength(input.replyLength || source.replyLength);
+  return { ...source, archetype, toneTags, avoidTraits, replyLength };
+}
+
 function createSoulProfile(input = {}) {
-  const source = buildSource(input);
-  const traits = splitKeywords(source.traits);
+  const source = applyStyleControls(buildSource(input), input);
+  const preset = resolveArchetype(source);
+  const mergedToneTags = [...new Set([...(preset?.toneTags || []), ...(source.toneTags || [])])].slice(0, 12);
+  const mergedAvoidTraits = [...new Set([...(preset?.avoidTraits || []), ...(source.avoidTraits || [])])].slice(0, 12);
+  const mergedTraits = [preset?.traits, source.traits].filter(Boolean).join(" ");
+  const mergedSpeechStyle = [preset?.speechStyle, source.speechStyle].filter(Boolean).join(" ");
+  const mergedBoundaries = [source.boundaries, preset?.boundaries].filter(Boolean).join(" ");
+  const resolvedReplyLength = source.replyLength || preset?.replyLength || "short";
+  const traits = splitKeywords(mergedTraits);
   const traitText = traits.length ? traits.join("、") : "稳定、真诚、会倾听";
   return {
     id: randomUUID(),
     createdAt: new Date().toISOString(),
     source,
     persona: {
+      archetype: source.archetype || "",
+      toneTags: mergedToneTags,
+      avoidTraits: mergedAvoidTraits,
+      replyLength: resolvedReplyLength,
       core: `${source.nickname}是用户设定的${source.relationship}，年龄感是${source.ageSense}，职业是${source.occupation}，人格核心为${traitText}。TA有边界、有记忆、有持续关系感。`,
       languageStyle: `说话方式：${source.speechStyle}。回复要自然、口语化、简洁，像即时聊天。`,
       relationshipState: `关系背景：${source.background}。记住兴趣：${source.interests}。保持亲近但克制。`,
       emotionalRules: [
+        `Tone tags: ${mergedToneTags.join(", ") || "none"}`,
+        `Avoid style traits: ${mergedAvoidTraits.join(", ") || "none"}`,
+        `Preferred reply length: ${resolvedReplyLength}`,
         "先识别用户情绪，再回应。",
         "用户低落时优先陪伴、确认感受，给一个很小的下一步。",
         "用户开心时跟随情绪，表达在意和祝贺。",
@@ -331,13 +413,96 @@ function chatUrl(endpoint) {
     : `${endpoint.replace(/\/$/, "")}/chat/completions`;
 }
 
+function applyPromptGuards(messages, persona = {}) {
+  const lengthGuide =
+    persona.replyLength === "long"
+      ? "up to 4 short sentences when necessary"
+      : persona.replyLength === "medium"
+        ? "prefer 2 short sentences"
+        : "prefer 1-2 short sentences";
+  const isCoolOrDominant =
+    persona.archetype === "cool-dominant" ||
+    (persona.toneTags || []).some((tag) => /cool|dominant|restrained|direct/i.test(String(tag)));
+  const guard = {
+    role: "system",
+    content: [
+      "Style guardrails:",
+      "- Avoid oily, melodramatic, over-sweet, and theatrical writing.",
+      "- Avoid long monologues, stage directions, and performative roleplay narration.",
+      "- Avoid emotional coercion and exaggerated romantic vows.",
+      "- Choose one plausible concrete situation per reply; do not stack dreamy fragments.",
+      "- Do not claim simultaneous implausible actions in the same moment.",
+      "- Keep role identity, occupation, and timeline internally consistent.",
+      "- Do not over-narrate internal monologue; stay in concise chat response mode.",
+      `- Length: ${lengthGuide}.`
+    ].join("\n")
+  };
+  const coherence = {
+    role: "system",
+    content:
+      "Coherence rule: if context is uncertain, prefer neutral and check with one short clarifying question instead of inventing extra scene details."
+  };
+  const preference = {
+    role: "system",
+    content: `Style preferences. archetype=${persona.archetype || "none"}; toneTags=${(persona.toneTags || []).join(",") || "none"}; avoidTraits=${(persona.avoidTraits || []).join(",") || "none"}`
+  };
+  const coolGuard = isCoolOrDominant
+    ? {
+        role: "system",
+        content:
+          "For cool/dominant style: be clean, minimal, and grounded. No clingy waiting language, no yearning scripts, no dramatic longing."
+      }
+    : null;
+  return [guard, coherence, preference, ...(coolGuard ? [coolGuard] : []), ...messages];
+}
+
+function normalizeAssistantContent(content, persona = {}) {
+  let text = String(content || "").replace(/\r/g, "").trim();
+  if (!text) return text;
+
+  const joinedTags = `${persona.archetype || ""} ${(persona.toneTags || []).join(" ")}`.toLowerCase();
+  const allowsLonging = /warm|romantic|tender/.test(joinedTags) && persona.archetype !== "cool-dominant";
+
+  text = text.replace(/[（(][^)）]{0,24}[)）]/g, "").replace(/\n{3,}/g, "\n\n").trim();
+  text = text.replace(/([!！?？~～])\1{1,}/g, "$1");
+
+  const hardBan = [
+    "偷听你语音",
+    "人还在想你",
+    "一直等你",
+    "命中注定",
+    "离不开你",
+    "只属于你"
+  ];
+  const softBan = ["我永远都在", "为你而活", "满脑子都是你", "每分每秒都想你"];
+  for (const phrase of hardBan) text = text.replaceAll(phrase, "");
+  if (!allowsLonging) {
+    for (const phrase of softBan) text = text.replaceAll(phrase, "");
+  }
+
+  text = text
+    .replace(/(刚.*开会|会议中).*(听歌|音乐|语音)/g, "$1")
+    .replace(/(一边.*开会).*(一边.*听歌)/g, "$1")
+    .replace(/(同时|一边).*(同时|一边)/g, "$1")
+    .trim();
+
+  const maxChars = persona.replyLength === "long" ? 260 : persona.replyLength === "medium" ? 180 : 110;
+  if (text.length > maxChars) text = `${text.slice(0, maxChars).trimEnd()}…`;
+
+  const sentenceLimit = persona.replyLength === "long" ? 4 : persona.replyLength === "medium" ? 3 : 2;
+  const sentences = text.split(/(?<=[。！？!?])/).map((item) => item.trim()).filter(Boolean);
+  if (sentences.length > sentenceLimit) text = sentences.slice(0, sentenceLimit).join("");
+
+  return text.replace(/\s{2,}/g, " ").trim();
+}
+
 async function callDashScopeOrFallback(profile, messages) {
   const { apiKey, modelName, baseURL } = getModelConfig();
-  if (!apiKey) return { mode: "mock", content: fallbackReply(profile, messages) };
+  if (!apiKey) return { mode: "mock", content: normalizeAssistantContent(fallbackReply(profile, messages), profile.persona) };
 
   const payload = {
     model: modelName,
-    messages: buildPrompt(profile, messages),
+    messages: applyPromptGuards(buildPrompt(profile, messages), profile.persona),
     temperature: 0.55,
     max_tokens: 220
   };
@@ -360,10 +525,14 @@ async function callDashScopeOrFallback(profile, messages) {
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
     if (!String(content).trim()) throw new Error("MODEL_EMPTY_RESPONSE");
-    return { mode: "model", content: String(content).trim().slice(0, 1500) };
+    return { mode: "model", content: normalizeAssistantContent(String(content).trim().slice(0, 1500), profile.persona) };
   } catch (error) {
     console.warn(`DashScope call failed, falling back to mock: ${error.message}`);
-    return { mode: "mock-fallback", warning: error.message, content: fallbackReply(profile, messages) };
+    return {
+      mode: "mock-fallback",
+      warning: error.message,
+      content: normalizeAssistantContent(fallbackReply(profile, messages), profile.persona)
+    };
   }
 }
 
