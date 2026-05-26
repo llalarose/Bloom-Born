@@ -234,6 +234,16 @@ function applyParsedProfile(source) {
   syncTopbar();
 }
 
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 async function parseSelectedFile() {
   const file = profileFile.files?.[0];
   if (!file) throw new Error("请先选择要导入的文件");
@@ -245,10 +255,31 @@ async function parseSelectedFile() {
     throw new Error("当前仅支持 .txt / .md / .markdown");
   }
 
-  const text = await file.text();
-  const parsed = parseProfileText(text);
-  applyParsedProfile(parsed);
-  return { fileName: file.name, source: parsed, notice: "文件已解析并填入角色属性。" };
+  const contentBase64 = arrayBufferToBase64(await file.arrayBuffer());
+  const data = await request("/api/profile/import", {
+    method: "POST",
+    body: JSON.stringify({
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      contentBase64
+    })
+  });
+
+  if (data.source) fillCharacterForm(data.source);
+  if (data.profile) {
+    state.profile = {
+      ...data.profile,
+      id: state.profile?.id || data.profile.id || ""
+    };
+  } else if (data.source) {
+    applyParsedProfile(data.source);
+  }
+  renderSoulPreview();
+  syncTopbar();
+  return {
+    fileName: file.name,
+    notice: data.encoding ? `${data.notice}（编码：${data.encoding}）` : data.notice || "文件已解析并填入角色属性。"
+  };
 }
 
 loginForm.addEventListener("submit", (event) => {
